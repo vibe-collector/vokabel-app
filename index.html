@@ -164,6 +164,15 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .row-btns button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .linkish { background: none; border: 0; color: var(--accent); font-weight: 800; padding: 4px 0; text-align: left; }
 .empty { text-align: center; padding: 10px; }
+.chip.empty-lang { opacity: .6; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+.thumb { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--grid); max-width: 100%; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-x { position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: .8rem; }
+.thumb-n { position: absolute; left: 6px; bottom: 4px; color: #fff; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.spinner { width: 46px; height: 46px; margin: 8px auto; border-radius: 50%; border: 5px solid var(--grid); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 </style>
 
 </head>
@@ -178,16 +187,8 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     en: { name: "Englisch",    short: "EN", tts: "en-GB", dict: "en" },
     es: { name: "Spanisch",    short: "ES", tts: "es-ES", dict: "es" },
   };
-  const V = (lang, cat, date, pairs) => pairs.map(([de, fx], i) => ({ id: `${lang}-${cat}-${date}-${i}`, lang, cat, date, de, fx }));
-  const VOCAB = [
-    ...V("fr", "Obst", "2026-11-12", [["der Apfel","la pomme"],["die Birne","la poire"],["die Banane","la banane"],["die Erdbeere","la fraise"],["die Kirsche","la cerise"],["die Orange","l'orange"],["die Traube","le raisin"],["die Zitrone","le citron"]]),
-    ...V("fr", "Zeitwörter", "2026-11-24", [["essen","manger"],["trinken","boire"],["schlafen","dormir"],["spielen","jouer"],["sprechen","parler"],["gehen","aller"],["machen","faire"],["sehen","voir"],["kommen","venir"],["lesen","lire"]]),
-    ...V("fr", "Schule", "2026-11-24", [["das Heft","le cahier"],["der Bleistift","le crayon"],["die Schultasche","le cartable"],["die Lehrerin","la professeure"],["das Buch","le livre"]]),
-    ...V("en", "Gebäude", "2026-11-18", [["das Haus","house"],["die Schule","school"],["die Kirche","church"],["der Bahnhof","station / train station"],["das Krankenhaus","hospital"],["die Bibliothek","library"],["das Schloss","castle"]]),
-    ...V("en", "Zeitwörter", "2026-11-25", [["laufen","run"],["schwimmen","swim"],["schreiben","write"],["kaufen","buy"],["vergessen","forget"],["verstehen","understand"],["fliegen","fly"],["singen","sing"]]),
-    ...V("es", "Familie", "2026-11-20", [["die Mutter","la madre"],["der Vater","el padre"],["der Bruder","el hermano"],["die Schwester","la hermana"],["die Großmutter","la abuela"],["der Onkel","el tío"]]),
-    ...V("es", "Zahlen", "2026-11-25", [["eins","uno"],["zwei","dos"],["drei","tres"],["vier","cuatro"],["fünf","cinco"],["zehn","diez"]]),
-  ];
+  const API = "https://n8n.haraldschwack.at/webhook/vokabel";
+  let VOCAB = [];
   const COLORS = ["#2b5fd9", "#d6457a", "#1f9d55", "#c77a12", "#7b4bd6", "#0f8f9c"];
 
   /* ---------- Speicher pro Gerät ---------- */
@@ -209,9 +210,39 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     session: null,
   };
   const save = () => ["users","me","lang","dir","mode","count","autoSpeak"].forEach(k => store.set(k, S[k]));
-  const statsKey = () => "stats_" + S.me;
-  const getStats = () => store.get(statsKey(), {});
-  const setStats = s => store.set(statsKey(), s);
+  /* Wörter + Fortschritt kommen vom Server (n8n), Kopie liegt am Gerät */
+  const fromRow = r => ({ id: r.id, lang: r.lang, cat: r.cat || "Allgemein", date: r.importDate || "", importId: r.importId || "", de: r.de, fx: r.fx,
+    r: Number(r.rightCount) || 0, w: Number(r.wrongCount) || 0, last: r.lastPracticed || "" });
+  const cacheWords = () => store.set("words_" + S.me, VOCAB);
+  const getStats = () => Object.fromEntries(VOCAB.filter(w => w.r + w.w > 0).map(w => [w.id, { r: w.r, w: w.w, last: w.last }]));
+  let pending = new Set(store.get("pending_" + (S.me || ""), []));
+  const markPending = id => { pending.add(id); store.set("pending_" + S.me, [...pending]); };
+  const setStats = st => { VOCAB.forEach(w => { const e = st[w.id]; if (e && (e.r !== w.r || e.w !== w.w)) { w.r = e.r; w.w = e.w; w.last = e.last; markPending(w.id); } }); cacheWords(); };
+  const pickDefaultLang = () => { if (!VOCAB.some(w => w.lang === S.lang) && VOCAB.length) { const latest = VOCAB.reduce((m, w) => w.date > m.date ? w : m, VOCAB[0]); S.lang = latest.lang; save(); } };
+  const loadWords = async () => {
+    pending = new Set(store.get("pending_" + S.me, []));
+    VOCAB = store.get("words_" + S.me, []); pickDefaultLang();
+    S.loading = !VOCAB.length; render();
+    try {
+      const res = await fetch(API + "/words?user=" + encodeURIComponent(S.me));
+      const data = await res.json();
+      const server = (data.words || []).map(fromRow);
+      const local = Object.fromEntries(VOCAB.map(w => [w.id, w]));
+      VOCAB = server.map(w => pending.has(w.id) && local[w.id] ? { ...w, r: local[w.id].r, w: local[w.id].w, last: local[w.id].last } : w);
+      cacheWords(); S.offline = false; pickDefaultLang();
+      syncProgress();
+    } catch { S.offline = true; }
+    S.loading = false; if (S.view === "home" || S.view === "stats") render();
+  };
+  const syncProgress = async () => {
+    if (!pending.size || !S.me) return;
+    const ids = [...pending];
+    const updates = VOCAB.filter(w => pending.has(w.id)).map(w => ({ id: w.id, rightCount: w.r, wrongCount: w.w, lastPracticed: w.last }));
+    try {
+      const res = await fetch(API + "/progress", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: S.me, updates }) });
+      if (res.ok) { ids.forEach(id => pending.delete(id)); store.set("pending_" + S.me, [...pending]); }
+    } catch {}
+  };
 
   /* ---------- Hilfen ---------- */
   const $ = (tag, attrs = {}, ...kids) => {
@@ -407,7 +438,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
   const selfRate = ok => { const s = S.session; record(cur().w, ok); s.phase = "feedback"; s.ok = ok; s.given = null; s.self = true; next(); };
   const next = () => {
     const s = S.session; s.idx++; s.heard = ""; s.self = false;
-    if (s.idx >= s.queue.length) { S.view = "results"; render(); return; }
+    if (s.idx >= s.queue.length) { S.view = "results"; render(); syncProgress(); return; }
     s.phase = "ask"; render(); autoSpeakPrompt();
     setTimeout(() => document.getElementById("answer")?.focus({ preventScroll: true }), 50);
   };
@@ -424,7 +455,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
   const viewPick = () => {
     const nameIn = $("input", { id: "newname", placeholder: "Anderer Name", maxlength: "20", "aria-label": "Neuer Name" });
     const add = () => { const n = nameIn.value.trim(); if (!n) return; if (!S.users.includes(n)) S.users.push(n); choose(n); };
-    const choose = n => { S.me = n; save(); S.view = "home"; render(); };
+    const choose = n => { S.me = n; save(); S.view = "home"; S.cat = "all"; loadWords(); };
     return [
       $("div", { class: "panel" },
         $("h1", {}, "Wer übt heute?"),
@@ -463,11 +494,16 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
           $("button", { class: "icon-btn", onclick: () => { S.view = "stats"; render(); }, "aria-label": "Meine Wörter" }, "📊"),
           $("button", { class: "icon-btn", onclick: () => { S.showSettings = !S.showSettings; render(); }, "aria-label": "Feineinstellungen", "aria-expanded": String(S.showSettings) }, "⚙️")),
       ),
-      $("div", { class: "demo-note" }, "Prototyp mit Beispiel-Vokabeln. Fotos lesen kommt im nächsten Schritt."),
+      S.offline && $("div", { class: "demo-note" }, "Keine Verbindung. Du übst mit den Wörtern, die auf diesem Handy gespeichert sind."),
+      S.loading && $("div", { class: "panel empty muted" }, "Deine Vokabeln werden geladen …"),
+      !S.loading && !VOCAB.length && $("div", { class: "panel" },
+        $("h2", {}, "Noch keine Vokabeln"),
+        $("p", { class: "muted", style: "margin:0" }, "Fotografiere die Seiten aus deinem Vokabelheft. Die App liest die Wörter aus und fragt dich dann genau diese ab."),
+        $("button", { class: "big primary", onclick: openImport }, "📷 Erste Seiten fotografieren")),
       $("div", { class: "panel" },
         $("div", { class: "langs", role: "group", "aria-label": "Sprache" },
-          Object.entries(LANGS).map(([k, l]) => $("button", { class: "chip", "aria-pressed": String(S.lang === k), onclick: () => { S.lang = k; S.cat = "all"; save(); render(); } },
-            $("span", { class: "flag" }, l.short), $("span", { class: "small" }, l.name)))),
+          Object.entries(LANGS).map(([k, l]) => { const c = VOCAB.filter(w => w.lang === k).length; return $("button", { class: "chip" + (c ? "" : " empty-lang"), "aria-pressed": String(S.lang === k), onclick: () => { S.lang = k; S.cat = "all"; save(); render(); } },
+            $("span", { class: "flag" }, l.short), $("span", { class: "small" }, l.name), $("span", { class: "small muted" }, c + " Wörter")); })),
         $("button", { class: "dir", onclick: () => { S.dir = S.dir === "de2fx" ? "fx2de" : "de2fx"; save(); render(); }, "aria-label": "Richtung wechseln" },
           S.dir === "de2fx" ? "Deutsch" : L.name, $("span", { class: "swap" }, "⇄"), S.dir === "de2fx" ? L.name : "Deutsch"),
         $("div", { class: "import-info muted" },
@@ -477,8 +513,77 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       settings,
       $("button", { class: "big primary", onclick: startSession, disabled: !n }, "▶ ", S.mode === "current" && S.cat === "all" ? "Aktuellen Import üben" : modeLabel + " üben"),
       $("p", { class: "hint-line muted small", style: "margin:-6px 0 0" }, n ? `${n} Wörter · ${S.cat === "all" ? "alle Themen" : S.cat}` : "Für diese Auswahl gibt es noch keine Wörter."),
-      $("button", { class: "big secondary", disabled: true, title: "Kommt im nächsten Schritt" }, "📷 Neue Seiten fotografieren"),
+      $("button", { class: "big secondary", onclick: openImport }, "📷 Neue Seiten fotografieren"),
     ];
+  };
+
+  /* ---------- Fotos importieren ---------- */
+  const IMP = { files: [], busy: false, error: "", result: null };
+  const openImport = () => { IMP.files = []; IMP.error = ""; IMP.result = null; S.view = "import"; render(); };
+  const shrink = file => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Ein Foto konnte nicht geöffnet werden.")); };
+    img.src = url;
+  });
+  const runImport = async () => {
+    if (!IMP.files.length || IMP.busy) return;
+    IMP.busy = true; IMP.error = ""; render();
+    try {
+      const images = await Promise.all(IMP.files.map(shrink));
+      let res;
+      try { res = await fetch(API + "/import", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: S.me, images }) }); }
+      catch { throw new Error("Keine Verbindung zum Server. Prüf das Internet und versuch es nochmal."); }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) throw new Error(data.error || "Das Auslesen hat nicht geklappt (Fehler " + res.status + "). Bitte nochmal versuchen.");
+      const ids = new Set((data.words || []).map(w => w.id));
+      await loadWords();
+      let found = VOCAB.filter(w => ids.has(w.id));
+      if (!found.length) found = (data.words || []).map(fromRow);
+      IMP.result = found; IMP.files = [];
+      if (found[0]) { S.lang = found[0].lang; S.mode = "current"; S.cat = "all"; save(); }
+    } catch (e) { IMP.error = e.message || "Das hat nicht geklappt. Bitte nochmal versuchen."; }
+    IMP.busy = false; S.view = "import"; render();
+  };
+  const viewImport = () => {
+    const back = $("div", { class: "top" }, $("button", { class: "linkish", onclick: () => { S.view = "home"; render(); } }, "← Zurück"), $("span", { class: "who" }, avatar(S.me), S.me));
+    if (IMP.busy) return [back, $("div", { class: "panel empty" },
+      $("div", { class: "spinner", "aria-hidden": "true" }),
+      $("h2", {}, "Deine Seiten werden gelesen …"),
+      $("p", { class: "muted", style: "margin:0" }, "Das dauert meistens 20 bis 40 Sekunden. Bitte die App offen lassen."))];
+    if (IMP.result) {
+      const r = IMP.result, L = LANGS[r[0]?.lang] || LANGS.en;
+      const cats = [...new Set(r.map(w => w.cat))];
+      return [back, $("div", { class: "panel" },
+        $("h1", {}, r.length + " Wörter gefunden"),
+        $("div", { class: "import-info" }, $("span", { class: "tag" }, L.name), cats.map(c => $("span", { class: "tag" }, c + " · " + r.filter(w => w.cat === c).length))),
+        $("ul", { class: "wordlist" }, r.map(w => $("li", {}, $("span", { class: "dot n" }, "·"), $("span", { class: "w" }, w.fx, $("small", {}, w.de)), $("span", { class: "small muted" }, w.cat)))),
+        $("p", { class: "muted small", style: "margin:0" }, "Stimmt ein Wort nicht? Sag Bescheid, dann wird es korrigiert.")),
+        $("div", { class: "row-btns" },
+          $("button", { onclick: openImport }, "Weitere Seiten"),
+          $("button", { class: "primary", onclick: () => { S.view = "home"; startSession(); } }, "▶ Jetzt üben"))];
+    }
+    const cam = $("input", { type: "file", accept: "image/*", capture: "environment", id: "cam", hidden: true, onchange: e => { IMP.files.push(...e.target.files); e.target.value = ""; IMP.error = ""; render(); } });
+    const gal = $("input", { type: "file", accept: "image/*", multiple: true, id: "gal", hidden: true, onchange: e => { IMP.files.push(...e.target.files); e.target.value = ""; IMP.error = ""; render(); } });
+    const thumbs = IMP.files.map((f, i) => { const u = URL.createObjectURL(f);
+      return $("div", { class: "thumb" }, $("img", { src: u, alt: "Seite " + (i + 1), onload: () => URL.revokeObjectURL(u) }),
+        $("button", { class: "thumb-x", "aria-label": "Seite " + (i + 1) + " entfernen", onclick: () => { IMP.files.splice(i, 1); render(); } }, "✕"),
+        $("span", { class: "thumb-n" }, String(i + 1))); });
+    return [back, $("div", { class: "panel" },
+      $("h1", {}, "Neue Seiten"),
+      $("p", { class: "muted", style: "margin:0" }, "Fotografiere jede Vokabelseite einzeln, gerade von oben und gut beleuchtet. Bis zu 8 Seiten auf einmal."),
+      cam, gal,
+      thumbs.length ? $("div", { class: "thumbs" }, thumbs) : null,
+      IMP.files.length < 8 && $("div", { class: "row-btns" },
+        $("button", { class: "primary", onclick: () => cam.click() }, IMP.files.length ? "📷 Noch eine Seite" : "📷 Seite fotografieren"),
+        $("button", { onclick: () => gal.click() }, "🖼 Aus Fotos wählen")),
+      IMP.error && $("div", { class: "feedback bad" }, $("div", { class: "small" }, IMP.error))),
+      $("button", { class: "big primary", onclick: runImport, disabled: !IMP.files.length }, IMP.files.length ? `✨ ${IMP.files.length} ${IMP.files.length === 1 ? "Seite" : "Seiten"} auslesen` : "✨ Auslesen")];
   };
   const sel = (id, value, opts, onchange) => {
     const s = $("select", { id, onchange: e => { onchange(e.target.value); save(); render(); } }, opts.map(([v, t]) => $("option", { value: v }, t)));
@@ -489,7 +594,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     const s = S.session, item = cur(), w = item.w, L = LANGS[S.lang];
     const done = Object.keys(s.results).length;
     const head = $("div", { class: "p-head" },
-      $("button", { class: "linkish", onclick: () => { try { speechSynthesis.cancel(); } catch {} dict?.stop().catch(() => {}); S.view = done ? "results" : "home"; render(); } }, "← Beenden"),
+      $("button", { class: "linkish", onclick: () => { try { speechSynthesis.cancel(); } catch {} dict?.stop().catch(() => {}); S.view = done ? "results" : "home"; render(); syncProgress(); } }, "← Beenden"),
       $("span", { class: "muted small" }, item.retry ? "Nochmal: " : "", `${Math.min(s.idx + 1, s.queue.length)} / ${s.queue.length}`));
     const bar = $("div", { class: "progress", "aria-hidden": "true" }, $("span", { style: `width:${(s.idx / s.queue.length) * 100}%` }));
 
@@ -595,10 +700,11 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     if (!S.me) S.view = "pick";
     else if (!S.view) S.view = "home";
     const app = document.getElementById("app");
-    const v = { pick: viewPick, home: viewHome, practice: viewPractice, results: viewResults, stats: viewStats }[S.view]();
+    const v = { pick: viewPick, home: viewHome, practice: viewPractice, results: viewResults, stats: viewStats, import: viewImport }[S.view]();
     app.replaceChildren(...v.filter(Boolean));
   };
   render();
+  if (S.me) loadWords();
 })();
 </script>
 
