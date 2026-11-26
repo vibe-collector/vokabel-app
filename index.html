@@ -167,9 +167,9 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .chip.empty-lang { opacity: .6; }
 .avatar.has-icon { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 1.05rem; }
 .person .avatar.has-icon { font-size: 1.9rem; }
-.howto summary { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; cursor: pointer; }
+.howto-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .howto ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; }
-.howto[open] { gap: 12px; }
+
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
 .thumb { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--grid); max-width: 100%; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -211,6 +211,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     count: store.get("count", 20),
     autoSpeak: store.get("autoSpeak", true),
     showSettings: false,
+    showHelp: !store.get("helpSeen", false),
     view: null,
     session: null,
   };
@@ -502,9 +503,11 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       $("div", { class: "top" },
         $("button", { class: "who", onclick: () => { S.view = "pick"; render(); }, "aria-label": "Person wechseln" }, avatar(S.me), S.me),
         $("div", { style: "display:flex;gap:8px" },
+          $("button", { class: "icon-btn", onclick: () => { S.showHelp = !S.showHelp; render(); }, "aria-label": "So funktioniert's", "aria-expanded": String(!!S.showHelp) }, "❓"),
           $("button", { class: "icon-btn", onclick: () => { S.view = "stats"; render(); }, "aria-label": "Meine Wörter" }, "📊"),
           $("button", { class: "icon-btn", onclick: () => { S.showSettings = !S.showSettings; render(); }, "aria-label": "Feineinstellungen", "aria-expanded": String(S.showSettings) }, "⚙️")),
       ),
+      S.showHelp && howTo(),
       S.offline && $("div", { class: "demo-note" }, "Keine Verbindung. Du übst mit den Wörtern, die auf diesem Handy gespeichert sind."),
       S.loading && $("div", { class: "panel empty muted" }, "Deine Vokabeln werden geladen …"),
       !S.loading && !VOCAB.length && $("div", { class: "panel" },
@@ -525,7 +528,6 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       $("button", { class: "big primary", onclick: startSession, disabled: !n }, "▶ ", S.mode === "current" && S.cat === "all" ? "Aktuellen Import üben" : modeLabel + " üben"),
       $("p", { class: "hint-line muted small", style: "margin:-6px 0 0" }, n ? `${n} Wörter · ${S.cat === "all" ? "alle Themen" : S.cat}` : "Für diese Auswahl gibt es noch keine Wörter."),
       $("button", { class: "big secondary", onclick: openImport }, "📷 Neue Seiten fotografieren"),
-      howTo(),
     ];
   };
 
@@ -598,8 +600,9 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       $("button", { class: "big primary", onclick: runImport, disabled: !IMP.files.length }, IMP.files.length ? `✨ ${IMP.files.length} ${IMP.files.length === 1 ? "Seite" : "Seiten"} auslesen` : "✨ Auslesen")];
   };
   const howTo = () => {
-    const d = $("details", { class: "panel howto", open: !VOCAB.length },
-      $("summary", {}, "So funktioniert's"),
+    const d = $("div", { class: "panel howto", id: "howto" },
+      $("div", { class: "howto-head" }, $("h2", {}, "So funktioniert's"),
+        $("button", { class: "linkish", onclick: () => { S.showHelp = false; store.set("helpSeen", true); render(); } }, "Schließen")),
       $("ol", {},
         $("li", {}, $("b", {}, "Seiten fotografieren: "), "Tipp auf „Neue Seiten fotografieren“ und mach von jeder Vokabelseite ein Foto. Dann „Auslesen“ – nach etwa 30 Sekunden sind die Wörter drin."),
         $("li", {}, $("b", {}, "Sprache und Richtung wählen: "), "Oben FR, EN oder ES antippen. Mit dem Pfeil ⇄ legst du fest, ob du das deutsche oder das fremde Wort sagen musst."),
