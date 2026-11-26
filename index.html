@@ -262,11 +262,12 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     return el;
   };
   const colorFor = name => COLORS[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length];
+  const PERSON_COLORS = { johanna: "#f2c40f", sophia: "#8e4fd6", sophie: "#8e4fd6", maximilian: "#22a35a" };
   const ICONS = { johanna: "🎨", sophia: "💄", sophie: "💄", maximilian: "🚀" };
   const avatar = name => {
     const icon = ICONS[name.toLowerCase()];
     const a = $("span", { class: "avatar" + (icon ? " has-icon" : "") }, icon || name[0].toUpperCase());
-    a.style.background = colorFor(name); return a;
+    a.style.background = PERSON_COLORS[name.toLowerCase()] || colorFor(name); return a;
   };
   const fmtDate = iso => new Date(iso + "T12:00:00").toLocaleDateString("de-AT", { day: "numeric", month: "short" });
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
