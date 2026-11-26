@@ -167,6 +167,49 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .chip.empty-lang { opacity: .6; }
 .avatar.has-icon { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 1.05rem; }
 .person .avatar.has-icon { font-size: 1.9rem; }
+/* 10-Sekunden-Erklärfilm (reines CSS, läuft in Schleife) */
+.demo { display: grid; gap: 12px; }
+.demo-stage { position: relative; height: 250px; border-radius: 14px; background: var(--paper); border: 1px solid var(--line); overflow: hidden;
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 16px 16px; }
+.sc { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 12px; padding: 14px; opacity: 0; }
+.sc1 { animation: sc1 10s infinite; } .sc2 { animation: sc2 10s infinite; } .sc3 { animation: sc3 10s infinite; }
+@keyframes sc1 { 0%, 29% { opacity: 1 } 32%, 100% { opacity: 0 } }
+@keyframes sc2 { 0%, 31% { opacity: 0 } 34%, 62% { opacity: 1 } 65%, 100% { opacity: 0 } }
+@keyframes sc3 { 0%, 64% { opacity: 0 } 67%, 96% { opacity: 1 } 99%, 100% { opacity: 0 } }
+.d-btn { position: relative; background: var(--accent); color: var(--accent-ink); font-family: var(--font-display); font-weight: 600; padding: 12px 16px; border-radius: 14px; animation: dpress 10s infinite; }
+@keyframes dpress { 0%, 8% { transform: scale(1) } 10% { transform: scale(.94) } 12%, 100% { transform: scale(1) } }
+.d-tap { position: absolute; left: 70%; top: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 35%, transparent); opacity: 0; animation: dtap 10s infinite; }
+@keyframes dtap { 0%, 6% { opacity: 0; transform: scale(.4) } 9% { opacity: 1; transform: scale(1) } 14%, 100% { opacity: 0; transform: scale(1.8) } }
+.d-photo { width: 86px; height: 60px; border-radius: 6px; background: var(--card); border: 2px solid var(--ink); box-shadow: 0 4px 10px rgba(0,0,0,.15); display: grid; align-content: space-evenly; padding: 6px 8px; opacity: 0; animation: dphoto 10s infinite; }
+.d-photo i { display: block; height: 3px; border-radius: 2px; background: var(--ink-soft); }
+.d-photo i:nth-child(odd) { width: 80%; }
+@keyframes dphoto { 0%, 14% { opacity: 0; transform: translateY(30px) rotate(-8deg) } 19%, 29% { opacity: 1; transform: none } 32%, 100% { opacity: 0 } }
+.d-page { position: relative; width: min(260px, 90%); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; gap: 4px; overflow: hidden; }
+.d-row { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; border-bottom: 1px dashed var(--line); padding: 3px 0; font-style: italic; color: var(--accent); }
+.d-row b { color: var(--ink); font-weight: 700; }
+.d-scan { position: absolute; left: 0; right: 0; height: 3px; background: var(--marker); box-shadow: 0 0 12px 4px color-mix(in srgb, var(--marker) 70%, transparent); top: 0; animation: dscan 10s infinite; }
+@keyframes dscan { 0%, 35% { top: 0; opacity: 0 } 37% { opacity: 1 } 50% { top: 100%; opacity: 1 } 52%, 100% { top: 100%; opacity: 0 } }
+.d-badge { background: var(--good); color: #fff; font-weight: 800; padding: 6px 12px; border-radius: 999px; font-size: .9rem; opacity: 0; animation: dbadge 10s infinite; }
+@keyframes dbadge { 0%, 50% { opacity: 0; transform: scale(.6) } 53%, 62% { opacity: 1; transform: scale(1) } 65%, 100% { opacity: 0 } }
+.d-card { width: min(260px, 90%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; display: grid; gap: 6px; }
+.d-card small { font-weight: 800; letter-spacing: .08em; color: var(--ink-soft); font-size: .7rem; }
+.d-word { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; }
+.d-mic { background: var(--accent); color: var(--accent-ink); border-radius: 12px; padding: 8px; text-align: center; font-weight: 700; animation: dmic 10s infinite; }
+@keyframes dmic { 0%, 70% { background: var(--accent) } 72%, 80% { background: var(--bad) } 82%, 100% { background: var(--accent) } }
+.d-ans { border: 2px solid var(--line); border-radius: 10px; padding: 5px 8px; min-height: 1.9em; }
+.d-typed { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; width: 0; animation: dtype 10s infinite; }
+@keyframes dtype { 0%, 74% { width: 0 } 82%, 100% { width: 5.5em } }
+.d-ok { color: var(--good); font-family: var(--font-display); font-weight: 600; opacity: 0; animation: dok 10s infinite; }
+@keyframes dok { 0%, 83% { opacity: 0 } 86%, 100% { opacity: 1 } }
+.demo-steps { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+.st { opacity: .45; } .st1 { animation: st1 10s infinite; } .st2 { animation: st2 10s infinite; } .st3 { animation: st3 10s infinite; }
+@keyframes st1 { 0%, 31% { opacity: 1 } 33%, 100% { opacity: .45 } }
+@keyframes st2 { 0%, 32% { opacity: .45 } 34%, 64% { opacity: 1 } 66%, 100% { opacity: .45 } }
+@keyframes st3 { 0%, 65% { opacity: .45 } 67%, 100% { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) {
+  .demo-stage { display: none; }
+  .st { opacity: 1 !important; animation: none !important; }
+}
 .howto-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .howto ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; }
 
@@ -599,16 +642,34 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       IMP.error && $("div", { class: "feedback bad" }, $("div", { class: "small" }, IMP.error))),
       $("button", { class: "big primary", onclick: runImport, disabled: !IMP.files.length }, IMP.files.length ? `✨ ${IMP.files.length} ${IMP.files.length === 1 ? "Seite" : "Seiten"} auslesen` : "✨ Auslesen")];
   };
+  const DEMO_HTML = `
+    <div class="demo-stage" aria-hidden="true">
+      <div class="sc sc1">
+        <div class="d-btn">📷 Neue Seiten fotografieren<span class="d-tap"></span></div>
+        <div class="d-photo"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="sc sc2">
+        <div class="d-page"><div class="d-row"><b>der Apfel</b><span>la pomme</span></div><div class="d-row"><b>die Birne</b><span>la poire</span></div><div class="d-row"><b>essen</b><span>manger</span></div><div class="d-scan"></div></div>
+        <div class="d-badge">FR · Französisch erkannt ✓</div>
+      </div>
+      <div class="sc sc3">
+        <div class="d-card"><small>DEUTSCH</small><div class="d-word">der Apfel</div>
+          <div class="d-mic">🎤 Antwort sagen</div>
+          <div class="d-ans"><span class="d-typed">la pomme</span></div>
+          <div class="d-ok">Richtig! 🎉</div></div>
+      </div>
+    </div>
+    <ol class="demo-steps">
+      <li class="st st1"><b>Fotografieren:</b> Knopf drücken, Vokabelseiten fotografieren.</li>
+      <li class="st st2"><b>Auslesen:</b> Wörter und Sprache werden automatisch erkannt.</li>
+      <li class="st st3"><b>Loslegen:</b> Antwort sagen 🎤 oder eintippen.</li>
+    </ol>`;
+  const demoAnim = () => { const d = $("div", { class: "demo" }); d.innerHTML = DEMO_HTML; return d; };
   const howTo = () => {
     const d = $("div", { class: "panel howto", id: "howto" },
       $("div", { class: "howto-head" }, $("h2", {}, "So funktioniert's"),
         $("button", { class: "linkish", onclick: () => { S.showHelp = false; store.set("helpSeen", true); render(); } }, "Schließen")),
-      $("ol", {},
-        $("li", {}, $("b", {}, "Seiten fotografieren: "), "Tipp auf „Neue Seiten fotografieren“ und mach von jeder Vokabelseite ein Foto. Dann „Auslesen“ – nach etwa 30 Sekunden sind die Wörter drin."),
-        $("li", {}, $("b", {}, "Sprache und Richtung wählen: "), "Oben FR, EN oder ES antippen. Mit dem Pfeil ⇄ legst du fest, ob du das deutsche oder das fremde Wort sagen musst."),
-        $("li", {}, $("b", {}, "Üben: "), "Tipp auf 🎤 und sag die Antwort, oder tipp sie ein und drück „Prüfen“. Mit 🔊 hörst du das Wort. Weißt du es nicht, schau dir die Lösung an."),
-        $("li", {}, $("b", {}, "Wiederholen: "), "Falsche Wörter kommen am Ende der Runde nochmal. Unter 📊 siehst du, welche Wörter schon sitzen."),
-        $("li", {}, $("b", {}, "Feineinstellungen: "), "Unter ⚙️ kannst du z. B. nur die schwierigsten Wörter, ein Thema oder mehr Wörter auf einmal üben.")),
+      demoAnim(),
       $("p", { class: "muted small", style: "margin:0" }, "Tipp: Am iPhone in Safari öffnen und über Teilen → „Zum Home-Bildschirm“ wie eine App ablegen."));
     return d;
   };
