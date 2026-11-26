@@ -165,6 +165,9 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .linkish { background: none; border: 0; color: var(--accent); font-weight: 800; padding: 4px 0; text-align: left; }
 .empty { text-align: center; padding: 10px; }
 .chip.empty-lang { opacity: .6; }
+.howto summary { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; cursor: pointer; }
+.howto ol { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; }
+.howto[open] { gap: 12px; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
 .thumb { position: relative; aspect-ratio: 3 / 4; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--grid); max-width: 100%; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -514,6 +517,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
       $("button", { class: "big primary", onclick: startSession, disabled: !n }, "▶ ", S.mode === "current" && S.cat === "all" ? "Aktuellen Import üben" : modeLabel + " üben"),
       $("p", { class: "hint-line muted small", style: "margin:-6px 0 0" }, n ? `${n} Wörter · ${S.cat === "all" ? "alle Themen" : S.cat}` : "Für diese Auswahl gibt es noch keine Wörter."),
       $("button", { class: "big secondary", onclick: openImport }, "📷 Neue Seiten fotografieren"),
+      howTo(),
     ];
   };
 
@@ -584,6 +588,18 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
         $("button", { onclick: () => gal.click() }, "🖼 Aus Fotos wählen")),
       IMP.error && $("div", { class: "feedback bad" }, $("div", { class: "small" }, IMP.error))),
       $("button", { class: "big primary", onclick: runImport, disabled: !IMP.files.length }, IMP.files.length ? `✨ ${IMP.files.length} ${IMP.files.length === 1 ? "Seite" : "Seiten"} auslesen` : "✨ Auslesen")];
+  };
+  const howTo = () => {
+    const d = $("details", { class: "panel howto", open: !VOCAB.length },
+      $("summary", {}, "So funktioniert's"),
+      $("ol", {},
+        $("li", {}, $("b", {}, "Seiten fotografieren: "), "Tipp auf „Neue Seiten fotografieren“ und mach von jeder Vokabelseite ein Foto. Dann „Auslesen“ – nach etwa 30 Sekunden sind die Wörter drin."),
+        $("li", {}, $("b", {}, "Sprache und Richtung wählen: "), "Oben FR, EN oder ES antippen. Mit dem Pfeil ⇄ legst du fest, ob du das deutsche oder das fremde Wort sagen musst."),
+        $("li", {}, $("b", {}, "Üben: "), "Tipp auf 🎤 und sag die Antwort, oder tipp sie ein und drück „Prüfen“. Mit 🔊 hörst du das Wort. Weißt du es nicht, schau dir die Lösung an."),
+        $("li", {}, $("b", {}, "Wiederholen: "), "Falsche Wörter kommen am Ende der Runde nochmal. Unter 📊 siehst du, welche Wörter schon sitzen."),
+        $("li", {}, $("b", {}, "Feineinstellungen: "), "Unter ⚙️ kannst du z. B. nur die schwierigsten Wörter, ein Thema oder mehr Wörter auf einmal üben.")),
+      $("p", { class: "muted small", style: "margin:0" }, "Tipp: Am iPhone in Safari öffnen und über Teilen → „Zum Home-Bildschirm“ wie eine App ablegen."));
+    return d;
   };
   const sel = (id, value, opts, onchange) => {
     const s = $("select", { id, onchange: e => { onchange(e.target.value); save(); render(); } }, opts.map(([v, t]) => $("option", { value: v }, t)));
