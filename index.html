@@ -124,6 +124,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 @keyframes pulse { 50% { transform: scale(.98); box-shadow: 0 0 0 8px color-mix(in srgb, var(--bad) 25%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .mic.listening { animation: none; } .progress > span { transition: none; } }
 .kbhint { background: color-mix(in srgb, var(--marker) 35%, var(--card)); border-radius: 12px; padding: 10px 12px; font-size: .9rem; }
+.big-answer input { font-size: 1.3rem; padding: 16px 14px; }
 .or { text-align: center; margin: -8px 0 -6px; }
 .partial { min-height: 1.4em; font-style: italic; color: var(--ink-soft); text-align: center; }
 .reveal { background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-soft); font-weight: 700; padding: 6px; align-self: center; }
@@ -236,6 +237,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     es: { name: "Spanisch",    short: "ES", tts: "es-ES", dict: "es" },
   };
   const API = "https://n8n.haraldschwack.at/webhook/vokabel";
+  const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   let VOCAB = [];
   const COLORS = ["#2b5fd9", "#d6457a", "#1f9d55", "#c77a12", "#7b4bd6", "#0f8f9c"];
 
@@ -698,22 +700,33 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     );
 
     if (s.phase === "ask") {
-      const input = $("input", { id: "answer", autocomplete: "off", autocapitalize: "off", spellcheck: "false", placeholder: "Auf " + (S.dir === "de2fx" ? L.name : "Deutsch") + " …", "aria-label": "Antwort" });
+      const target = S.dir === "de2fx" ? L.name : "Deutsch";
+      const input = $("input", { id: "answer", autocomplete: "off", autocapitalize: "off", spellcheck: "false", enterkeyhint: "done",
+        placeholder: IS_IOS ? "Antwort …" : "Auf " + target + " …", "aria-label": "Antwort" });
       const check = () => input.value.trim() && evaluate(input.value);
       input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
-      const kbHint = $("div", { class: "kbhint", id: "kbhint", hidden: !S.showKbHint },
-        "Tipp jetzt auf das ", $("b", {}, "🎤 auf deiner Tastatur"), " und sag die Antwort. Dann auf ", $("b", {}, "Prüfen"), ".",
-        $("br"), $("span", { class: "muted" }, "Tastatur auf " + (S.dir === "de2fx" ? L.name : "Deutsch") + " stellen (🌐), dann versteht sie dich besser."));
-      const micClick = () => {
-        if (dict && !S.micOff) { startMic(); return; }
-        S.showKbHint = true; kbHint.hidden = false; input.focus();
-      };
-      card.append(
-        $("button", { class: "mic" + (S.listening ? " listening" : ""), id: "mic", onclick: micClick }, "🎤 ", $("span", { class: "lbl" }, S.listening ? "Ich höre zu …" : "Antwort sagen")),
-        $("div", { class: "partial", id: "partial", "aria-live": "polite" }),
-        kbHint,
-        $("div", { class: "or muted small" }, "oder tippen"));
-      card.append($("div", { class: "answer-row" }, input, $("button", { class: "check", onclick: check }, "Prüfen")));
+      const answerRow = $("div", { class: "answer-row" + (IS_IOS ? " big-answer" : "") }, input, $("button", { class: "check", onclick: check }, "Prüfen"));
+      if (IS_IOS) {
+        /* iPhone/iPad: Spracherkennung im Browser ist unzuverlässig, deshalb Diktat über die Tastatur */
+        card.append(answerRow,
+          $("div", { class: "kbhint" },
+            "Zum Sprechen: ins Feld tippen, dann das ", $("b", {}, "🎤 auf der Tastatur"), " drücken und die Antwort sagen.",
+            $("br"), $("span", { class: "muted" }, "Achte darauf, dass die Tastatur auf " + target + " steht (🌐 gedrückt halten).")));
+      } else {
+        const kbHint = $("div", { class: "kbhint", id: "kbhint", hidden: !S.showKbHint },
+          "Tipp jetzt auf das ", $("b", {}, "🎤 auf deiner Tastatur"), " und sag die Antwort. Dann auf ", $("b", {}, "Prüfen"), ".",
+          $("br"), $("span", { class: "muted" }, "Tastatur auf " + target + " stellen (🌐), dann versteht sie dich besser."));
+        const micClick = () => {
+          if (dict && !S.micOff) { startMic(); return; }
+          S.showKbHint = true; kbHint.hidden = false; input.focus();
+        };
+        card.append(
+          $("button", { class: "mic" + (S.listening ? " listening" : ""), id: "mic", onclick: micClick }, "🎤 ", $("span", { class: "lbl" }, S.listening ? "Ich höre zu …" : "Antwort sagen")),
+          $("div", { class: "partial", id: "partial", "aria-live": "polite" }),
+          kbHint,
+          $("div", { class: "or muted small" }, "oder tippen"),
+          answerRow);
+      }
       card.append($("button", { class: "reveal", onclick: revealSolution }, "Lösung anschauen"));
     } else if (s.phase === "revealed") {
       card.append(
