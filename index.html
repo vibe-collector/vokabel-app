@@ -124,6 +124,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 @keyframes pulse { 50% { transform: scale(.98); box-shadow: 0 0 0 8px color-mix(in srgb, var(--bad) 25%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .mic.listening { animation: none; } .progress > span { transition: none; } }
 .kbhint { background: color-mix(in srgb, var(--marker) 35%, var(--card)); border-radius: 12px; padding: 10px 12px; font-size: .9rem; }
+.ghost-input { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; }
 .big-answer input { font-size: 1.3rem; padding: 16px 14px; }
 .or { text-align: center; margin: -8px 0 -6px; }
 .partial { min-height: 1.4em; font-style: italic; color: var(--ink-soft); text-align: center; }
@@ -469,7 +470,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     const words = pickWords();
     if (!words.length) return;
     S.session = { queue: words.map(w => ({ w, retry: false })), idx: 0, total: words.length, results: {}, phase: "ask", heard: "" };
-    S.view = "practice"; render(); autoSpeakPrompt();
+    S.view = "practice"; render(); focusEl("answer"); autoSpeakPrompt();
   };
   const cur = () => S.session.queue[S.session.idx];
   const promptText = w => S.dir === "de2fx" ? w.de : w.fx;
@@ -484,11 +485,15 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
     if (!(w.id in S.session.results)) S.session.results[w.id] = ok;
     if (!ok && !cur().retry) S.session.queue.push({ w, retry: true });
   };
+  /* Fokus direkt im Tipp/Tastendruck setzen: nur so öffnet das iPhone die Tastatur von selbst */
+  const focusEl = id => { const el = document.getElementById(id); if (el) try { el.focus({ preventScroll: true }); } catch {} };
   const evaluate = given => {
     const s = S.session; if (s.phase !== "ask") return;
     const w = cur().w; const ok = isCorrect(given, solutionText(w));
     s.phase = "feedback"; s.ok = ok; s.given = given; record(w, ok);
+    const keepKeyboard = IS_IOS && document.activeElement && document.activeElement.id === "answer";
     render();
+    if (keepKeyboard) focusEl("nextkey");
     if (S.dir === "de2fx") speak(solutionText(w), answerLang());
   };
   const revealSolution = () => { S.session.phase = "revealed"; render(); if (S.dir === "de2fx") speak(solutionText(cur().w), answerLang()); };
@@ -496,8 +501,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
   const next = () => {
     const s = S.session; s.idx++; s.heard = ""; s.self = false;
     if (s.idx >= s.queue.length) { S.view = "results"; render(); syncProgress(); return; }
-    s.phase = "ask"; render(); autoSpeakPrompt();
-    setTimeout(() => document.getElementById("answer")?.focus({ preventScroll: true }), 50);
+    s.phase = "ask"; render(); focusEl("answer"); autoSpeakPrompt();
   };
   const startMic = () => {
     if (!dict) return;
@@ -710,7 +714,7 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
         /* iPhone/iPad: Spracherkennung im Browser ist unzuverlässig, deshalb Diktat über die Tastatur */
         card.append(answerRow,
           $("div", { class: "kbhint" },
-            "Zum Sprechen: ins Feld tippen, dann das ", $("b", {}, "🎤 auf der Tastatur"), " drücken und die Antwort sagen.",
+            "Zum Sprechen das ", $("b", {}, "🎤 auf der Tastatur"), " drücken und die Antwort sagen. Mit ", $("b", {}, "Fertig/Return"), " prüfen, nochmal ", $("b", {}, "Return"), " für das nächste Wort.",
             $("br"), $("span", { class: "muted" }, "Achte darauf, dass die Tastatur auf " + target + " steht (🌐 gedrückt halten).")));
       } else {
         const kbHint = $("div", { class: "kbhint", id: "kbhint", hidden: !S.showKbHint },
@@ -744,8 +748,10 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
           s.given != null && $("div", { class: "small" }, "Deine Antwort: ", $("b", {}, s.given)),
           solutionRow(w),
           !s.ok && $("div", { class: "small muted" }, "Das Wort kommt am Ende nochmal.")),
-        $("button", { class: "next", id: "nextbtn", onclick: next }, "Weiter →"));
-      setTimeout(() => document.getElementById("nextbtn")?.focus({ preventScroll: true }), 30);
+        $("button", { class: "next", id: "nextbtn", onclick: next }, "Weiter →"),
+        IS_IOS && $("input", { id: "nextkey", class: "ghost-input", enterkeyhint: "next", autocomplete: "off", "aria-label": "Weiter mit der Eingabetaste",
+          onkeydown: e => { if (e.key === "Enter") { e.preventDefault(); next(); } }, oninput: e => { e.target.value = ""; } }));
+      if (!IS_IOS) setTimeout(() => document.getElementById("nextbtn")?.focus({ preventScroll: true }), 30);
     }
     return [head, bar, card];
   };
